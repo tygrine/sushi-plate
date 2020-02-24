@@ -1,0 +1,122 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Document</title>
+    <link rel="stylesheet" href="css/main.css">
+</head>
+<body>
+    <script src="/three.js"></script>
+    <script src="/GLTFLoader.js"></script>
+    <script src="/OrbitControl.js"></script>
+    <script>
+
+        // Scene
+        var scene = new THREE.Scene();
+        scene.background = new THREE.Color('#C2C5CC');
+
+        // Camera - field of view, aspect ratio, near/far clipping plane
+        var camera = new THREE.PerspectiveCamera(5, window.innerWidth/window.innerHeight, 0.1, 100);
+        camera.position.set(0, 10, 20);
+
+        // Render - antialias so it doesnt look as pixelly
+        var renderer = new THREE.WebGLRenderer({antialias: true});
+        renderer.autoClearColor = false;
+        renderer.setPixelRatio(window.devicePixelRatio);
+        renderer.setSize(window.innerWidth, window.innerHeight);
+        document.body.appendChild(renderer.domElement);
+        
+            // requests render and camera aspect ratio to resize on window resize
+        window.addEventListener('resize', () => {
+            var width = window.innerWidth;
+            var height = window.innerHeight;
+            camera.aspect = width / height;
+            renderer.setSize(width, height);
+            camera.updateProjectionMatrix();
+        })
+
+        // Controls
+        var controls = new THREE.OrbitControls(camera, renderer.domElement)
+
+        // Lighting
+            var spotLight = new THREE.SpotLight(0xffffff);
+            spotLight.position.set(100, 1000, 100);
+
+            spotLight.shadow.mapSize.width = 1024;
+            spotLight.shadow.mapSize.height = 1024;
+
+            spotLight.shadow.camera.near = 500;
+            spotLight.shadow.camera.far = 4000;
+            spotLight.shadow.camera.fov = 30;
+
+            scene.add(spotLight);
+
+        var directionalLight = new THREE.DirectionalLight( 0xffffe0, 0.5 );
+        scene.add( directionalLight );
+
+        // Model Loader
+        var loader = new THREE.GLTFLoader();
+        var mesh; // the model loaded
+        loader.load('scene.gltf', function(gltf) {
+            mesh = gltf.scene;
+            scene.add(mesh);
+        }, 
+        undefined, 
+        function(error) {
+            console.error(error);
+
+        });
+        
+        // Background
+        const bgScene = new THREE.Scene();
+        let bgMesh;
+        {
+            const loader = new THREE.TextureLoader();
+            const texture = loader.load(
+                    'https://live.staticflickr.com/153/417119374_ff6f329a4a_b.jpg',
+                );
+                texture.magFilter = THREE.LinearFilter;
+                texture.minFilter = THREE.LinearFilter;
+
+                const shader = THREE.ShaderLib.equirect;
+                const material = new THREE.ShaderMaterial({
+                    fragmentShader: shader.fragmentShader,
+                    vertexShader: shader.vertexShader,
+                    uniforms: shader.uniforms,
+                    depthWrite: false,
+                    side: THREE.BackSide,
+                });
+                material.uniforms.tEquirect.value = texture;
+                const plane = new THREE.BoxBufferGeometry(2, 2, 2);
+                bgMesh = new THREE.Mesh(plane, material);
+                bgScene.add(bgMesh);
+        }
+        // bg camera
+            var bgcamera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 100);
+            bgcamera.position.set(0, 10, 20);
+
+                // Draw Scene
+            var delta = 0;
+            function render() {
+                if (mesh) {
+                    delta += 0.1;
+                    mesh.rotation.y += 0.02
+                }
+
+                bgMesh.position.copy(bgcamera.position);
+
+                renderer.render(bgScene, bgcamera);
+                renderer.render(scene, camera);
+                requestAnimationFrame(render);
+            }
+        
+        //  bg camera controls
+        var controls = new THREE.OrbitControls(bgcamera, renderer.domElement)
+
+        render();
+
+
+    </script>
+</body>
+</html>
